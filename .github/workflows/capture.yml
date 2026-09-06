@@ -1,0 +1,34 @@
+name: Capture video
+on:
+  push:
+    branches: [main]
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install puppeteer
+      - run: npm install -g timecut
+      - name: Capture page to video
+        run: |
+          PAGE_URL="file://$(pwd)/index.html"
+          npx timecut "$PAGE_URL" \
+            --viewport=1920,1080 \
+            --fps=${FPS:-60} \
+            --duration=${DURATION:-30} \
+            --output=out/video.mp4
+        env:
+          FPS: "60"
+          DURATION: "30"
+      - uses: actions/upload-artifact@v4
+        with: { name: video, path: out/video.mp4 }
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: video-${{ github.run_number }}
+          files: out/video.mp4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

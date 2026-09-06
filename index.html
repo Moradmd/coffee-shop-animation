@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, height=1080">
+<title>Brew & Bean</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  font-family: 'DM Sans', sans-serif;
+  background: #1A0F0A;
+}
+
+.canvas {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  background: linear-gradient(135deg, #2C1810 0%, #1A0F0A 40%, #2C1810 70%, #0D0705 100%);
+  overflow: hidden;
+}
+
+/* Background grain texture */
+.canvas::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Warm light bloom */
+.bloom {
+  position: absolute;
+  width: 800px;
+  height: 800px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(212,118,58,0.15) 0%, transparent 70%);
+  top: -200px;
+  right: -100px;
+  z-index: 0;
+}
+
+.bloom2 {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245,200,150,0.08) 0%, transparent 70%);
+  bottom: -100px;
+  left: 100px;
+  z-index: 0;
+}
+
+/* Floating beans - background layer */
+.beans-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.bean {
+  position: absolute;
+  width: 28px;
+  height: 40px;
+  background: #5C3317;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  opacity: 0;
+  transform: translateY(0) rotate(0deg);
+}
+
+.bean::after {
+  content: '';
+  position: absolute;
+  width: 2px;
+  height: 24px;
+  background: #3C2415;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 2px;
+}
+
+/* Coffee cup */
+.cup-container {
+  position: absolute;
+  left: 200px;
+  bottom: 80px;
+  z-index: 3;
+  opacity: 0;
+  transform: translateY(40px);
+}
+
+.cup {
+  position: relative;
+  width: 180px;
+  height: 160px;
+}
+
+.cup-body {
+  position: absolute;
+  bottom: 0;
+  width: 180px;
+  height: 130px;
+  background: linear-gradient(135deg, #E8DDD0 0%, #D4C4B0 50%, #C4B49C 100%);
+  border-radius: 8px 8px 40px 40px;
+  box-shadow: inset -8px 0 20px rgba(0,0,0,0.1), 8px 8px 30px rgba(0,0,0,0.4);
+}
+
+.cup-body::after {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 30px;
+  height: 40px;
+  background: linear-gradient(180deg, rgba(60,30,10,0.7) 0%, rgba(60,30,10,0.3) 100%);
+  border-radius: 4px;
+}
+
+.cup-handle {
+  position: absolute;
+  right: -35px;
+  top: 20px;
+  width: 50px;
+  height: 70px;
+  border: 12px solid #D4C4B0;
+  border-left: none;
+  border-radius: 0 40px 40px 0;
+  box-shadow: 4px 4px 15px rgba(0,0,0,0.3);
+}
+
+.cup-saucer {
+  position: absolute;
+  bottom: -15px;
+  left: -20px;
+  width: 220px;
+  height: 30px;
+  background: linear-gradient(180deg, #D4C4B0 0%, #C4B49C 100%);
+  border-radius: 50%;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+}
+
+/* Steam */
+.steam-container {
+  position: absolute;
+  top: -100px;
+  left: 30px;
+  width: 120px;
+  height: 120px;
+}
+
+.steam {
+  position: absolute;
+  bottom: 0;
+  width: 8px;
+  height: 60px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.0) 0%, rgba(255,255,255,0.25) 50%, rgba(255,255,255,0.0) 100%);
+  border-radius: 4px;
+  transform-origin: bottom center;
+}
+
+.steam:nth-child(1) { left: 20px; animation: steam1 2.5s ease-out infinite; }
+.steam:nth-child(2) { left: 50px; animation: steam2 2.8s ease-out infinite 0.3s; }
+.steam:nth-child(3) { left: 80px; animation: steam3 2.3s ease-out infinite 0.6s; }
+
+@keyframes steam1 {
+  0% { opacity: 0; transform: translateY(0) scaleX(1) rotate(0deg); }
+  20% { opacity: 0.6; }
+  100% { opacity: 0; transform: translateY(-80px) scaleX(2) rotate(15deg); }
+}
+@keyframes steam2 {
+  0% { opacity: 0; transform: translateY(0) scaleX(1) rotate(0deg); }
+  20% { opacity: 0.5; }
+  100% { opacity: 0; transform: translateY(-90px) scaleX(2.5) rotate(-10deg); }
+}
+@keyframes steam3 {
+  0% { opacity: 0; transform: translateY(0) scaleX(1) rotate(0deg); }
+  20% { opacity: 0.7; }
+  100% { opacity: 0; transform: translateY(-70px) scaleX(1.8) rotate(8deg); }
+}
+
+/* Main text */
+.text-container {
+  position: absolute;
+  right: 180px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 4;
+  text-align: right;
+}
+
+.brand-line1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 140px;
+  font-weight: 900;
+  color: #F5E6D3;
+  line-height: 1;
+  letter-spacing: -4px;
+  opacity: 0;
+  transform: translateX(80px);
+}
+
+.brand-line2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 140px;
+  font-weight: 400;
+  font-style: italic;
+  color: #D4763A;
+  line-height: 1;
+  letter-spacing: -4px;
+  opacity: 0;
+  transform: translateX(80px);
+  margin-top: -20px;
+}
+
+.tagline {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 22px;
+  font-weight: 300;
+  color: rgba(245,230,211,0.7);
+  letter-spacing: 8px;
+  text-transform: uppercase;
+  margin-top: 24px;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.divider {
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #D4763A, transparent);
+  margin: 20px 0 20px auto;
+  opacity: 0;
+}
+
+.hours {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 300;
+  color: rgba(245,230,211,0.5);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+/* Decorative circles */
+.deco-circle {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(212,118,58,0.2);
+  z-index: 2;
+  opacity: 0;
+}
+
+.deco-circle.c1 {
+  width: 300px;
+  height: 300px;
+  top: 100px;
+  right: 400px;
+}
+
+.deco-circle.c2 {
+  width: 500px;
+  height: 500px;
+  bottom: -100px;
+  right: 200px;
+}
+
+.deco-circle.c3 {
+  width: 200px;
+  height: 200px;
+  top: 300px;
+  right: 700px;
+  border-color: rgba(245,230,211,0.06);
+}
+
+/* Corner text */
+.corner-text {
+  position: absolute;
+  font-family: 'Playfair Display', serif;
+  font-size: 11px;
+  font-style: italic;
+  color: rgba(212,118,58,0.4);
+  letter-spacing: 2px;
+  z-index: 5;
+  opacity: 0;
+}
+
+.corner-text.top-left {
+  top: 40px;
+  left: 50px;
+  transform: rotate(-90deg) translateX(-100%);
+  transform-origin: left top;
+}
+
+.corner-text.bottom-right {
+  bottom: 40px;
+  right: 50px;
+  transform: rotate(90deg) translateX(100%);
+  transform-origin: right bottom;
+}
+
+/* Menu items */
+.menu-items {
+  position: absolute;
+  bottom: 120px;
+  right: 180px;
+  display: flex;
+  gap: 48px;
+  z-index: 4;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.menu-item {
+  text-align: center;
+}
+
+.menu-item-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  color: #F5E6D3;
+  font-weight: 400;
+  margin-bottom: 4px;
+}
+
+.menu-item-price {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: #D4763A;
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
+/* Animated bean floating */
+@keyframes floatBean {
+  0% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-30px) rotate(180deg); }
+  100% { transform: translateY(0) rotate(360deg); }
+}
+
+/* Progress indicator - subtle at bottom */
+.progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #D4763A, #F5E6D3);
+  z-index: 10;
+  width: 0%;
+}
+</style>
+</head>
+<body>
+<div class="canvas" id="canvas">
+  <div class="bloom"></div>
+  <div class="bloom2"></div>
+
+  <!-- Decorative circles -->
+  <div class="deco-circle c1" id="c1"></div>
+  <div class="deco-circle c2" id="c2"></div>
+  <div class="deco-circle c3" id="c3"></div>
+
+  <!-- Corner text -->
+  <div class="corner-text top-left" id="ct1">Est. 2019 · Dhaka</div>
+  <div class="corner-text bottom-right" id="ct2">Crafted with care</div>
+
+  <!-- Coffee cup -->
+  <div class="cup-container" id="cup">
+    <div class="steam-container">
+      <div class="steam"></div>
+      <div class="steam"></div>
+      <div class="steam"></div>
+    </div>
+    <div class="cup">
+      <div class="cup-body"></div>
+      <div class="cup-handle"></div>
+      <div class="cup-saucer"></div>
+    </div>
+  </div>
+
+  <!-- Background beans -->
+  <div class="beans-bg" id="beans-bg"></div>
+
+  <!-- Main text -->
+  <div class="text-container">
+    <div class="brand-line1" id="line1">BREW</div>
+    <div class="brand-line2" id="line2">&amp; Bean</div>
+    <div class="divider" id="divider"></div>
+    <div class="tagline" id="tagline">Artisan Coffee Roasters</div>
+    <div class="hours" id="hours">Open Daily · 7AM — 11PM</div>
+  </div>
+
+  <!-- Menu -->
+  <div class="menu-items" id="menu">
+    <div class="menu-item">
+      <div class="menu-item-name">Espresso</div>
+      <div class="menu-item-price">৳ 180</div>
+    </div>
+    <div class="menu-item">
+      <div class="menu-item-name">Cappuccino</div>
+      <div class="menu-item-price">৳ 240</div>
+    </div>
+    <div class="menu-item">
+      <div class="menu-item-name">Cold Brew</div>
+      <div class="menu-item-price">৳ 260</div>
+    </div>
+  </div>
+
+  <div class="progress-bar" id="progress"></div>
+</div>
+
+<script>
+(function() {
+  const DURATION = 30;
+  const startTime = performance.now();
+
+  // Easing function
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  function easeOutExpo(t) {
+    return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+  }
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  // Create floating beans
+  const beansBg = document.getElementById('beans-bg');
+  const beanData = [
+    { x: 300, y: 200, size: 24, delay: 0.2, dur: 8, rotSpeed: 0.5 },
+    { x: 1600, y: 150, size: 32, delay: 0.5, dur: 10, rotSpeed: -0.3 },
+    { x: 1400, y: 800, size: 20, delay: 0.8, dur: 7, rotSpeed: 0.7 },
+    { x: 700, y: 900, size: 28, delay: 1.2, dur: 9, rotSpeed: -0.4 },
+    { x: 1800, y: 500, size: 22, delay: 0.3, dur: 11, rotSpeed: 0.6 },
+    { x: 500, y: 600, size: 26, delay: 1.5, dur: 8, rotSpeed: -0.5 },
+    { x: 1200, y: 300, size: 30, delay: 0.7, dur: 12, rotSpeed: 0.4 },
+    { x: 100, y: 400, size: 18, delay: 1.0, dur: 9, rotSpeed: -0.6 },
+  ];
+
+  beanData.forEach((b, i) => {
+    const bean = document.createElement('div');
+    bean.className = 'bean';
+    bean.style.cssText = `
+      position: absolute;
+      left: ${b.x}px;
+      top: ${b.y}px;
+      width: ${b.size}px;
+      height: ${b.size * 1.4}px;
+      background: #5C3317;
+      border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+      opacity: 0;
+    `;
+    const notch = document.createElement('div');
+    notch.style.cssText = `
+      position: absolute;
+      width: 1.5px;
+      height: ${b.size * 0.6}px;
+      background: #3C2415;
+      top: ${b.size * 0.22}px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-radius: 1px;
+    `;
+    bean.appendChild(notch);
+    beansBg.appendChild(bean);
+
+    bean._data = b;
+    bean._el = bean;
+  });
+
+  function getElapsed() {
+    return (performance.now() - startTime) / 1000;
+  }
+
+  function animate() {
+    const t = getElapsed();
+    const progress = Math.min(t / DURATION, 1);
+
+    // Progress bar
+    document.getElementById('progress').style.width = (progress * 100) + '%';
+
+    // === 0-2s: Decorative circles fade in ===
+    const c1 = document.getElementById('c1');
+    const c2 = document.getElementById('c2');
+    const c3 = document.getElementById('c3');
+
+    if (t >= 0.2) {
+      c1.style.opacity = Math.min((t - 0.2) / 0.8, 1) * 0.6;
+      c1.style.transform = `rotate(${t * 5}deg)`;
+      c1.style.transition = 'none';
+    }
+    if (t >= 0.4) {
+      c2.style.opacity = Math.min((t - 0.4) / 0.8, 1) * 0.3;
+      c2.style.transform = `rotate(${-t * 3}deg)`;
+      c2.style.transition = 'none';
+    }
+    if (t >= 0.6) {
+      c3.style.opacity = Math.min((t - 0.6) / 0.6, 1) * 0.5;
+      c3.style.transition = 'none';
+    }
+
+    // === 0.3-1.5s: Corner texts ===
+    const ct1 = document.getElementById('ct1');
+    const ct2 = document.getElementById('ct2');
+    if (t >= 0.3) {
+      ct1.style.opacity = Math.min((t - 0.3) / 0.5, 1) * 1;
+    }
+    if (t >= 0.5) {
+      ct2.style.opacity = Math.min((t - 0.5) / 0.5, 1) * 1;
+    }
+
+    // === 0.5-2s: Cup entrance ===
+    const cup = document.getElementById('cup');
+    if (t >= 0.5) {
+      const p = Math.min((t - 0.5) / 1.2, 1);
+      cup.style.opacity = easeOutCubic(p);
+      cup.style.transform = `translateY(${lerp(40, 0, easeOutCubic(p))}px)`;
+      cup.style.transition = 'none';
+    }
+
+    // === 1-2.5s: Brand line 1 ===
+    const line1 = document.getElementById('line1');
+    if (t >= 1.0) {
+      const p = Math.min((t - 1.0) / 0.8, 1);
+      line1.style.opacity = easeOutCubic(p);
+      line1.style.transform = `translateX(${lerp(80, 0, easeOutCubic(p))}px)`;
+      line1.style.transition = 'none';
+    }
+
+    // === 1.3-2.8s: Brand line 2 ===
+    const line2 = document.getElementById('line2');
+    if (t >= 1.3) {
+      const p = Math.min((t - 1.3) / 0.8, 1);
+      line2.style.opacity = easeOutCubic(p);
+      line2.style.transform = `translateX(${lerp(80, 0, easeOutCubic(p))}px)`;
+      line2.style.transition = 'none';
+    }
+
+    // === 2-3s: Divider ===
+    const divider = document.getElementById('divider');
+    if (t >= 2.0) {
+      const p = Math.min((t - 2.0) / 0.6, 1);
+      divider.style.opacity = easeOutCubic(p);
+      divider.style.width = `${easeOutCubic(p) * 300}px`;
+      divider.style.transition = 'none';
+    }
+
+    // === 2.2-3.2s: Tagline ===
+    const tagline = document.getElementById('tagline');
+    if (t >= 2.2) {
+      const p = Math.min((t - 2.2) / 0.7, 1);
+      tagline.style.opacity = easeOutCubic(p);
+      tagline.style.transform = `translateY(${lerp(20, 0, easeOutCubic(p))}px)`;
+      tagline.style.transition = 'none';
+    }
+
+    // === 2.5-3.5s: Hours ===
+    const hours = document.getElementById('hours');
+    if (t >= 2.5) {
+      const p = Math.min((t - 2.5) / 0.6, 1);
+      hours.style.opacity = easeOutCubic(p);
+      hours.style.transform = `translateY(${lerp(10, 0, easeOutCubic(p))}px)`;
+      hours.style.transition = 'none';
+    }
+
+    // === 2.8-3.8s: Menu items ===
+    const menu = document.getElementById('menu');
+    if (t >= 2.8) {
+      const p = Math.min((t - 2.8) / 0.7, 1);
+      menu.style.opacity = easeOutCubic(p);
+      menu.style.transform = `translateY(${lerp(20, 0, easeOutCubic(p))}px)`;
+      menu.style.transition = 'none';
+    }
+
+    // === Floating beans (continuous from 1s onward) ===
+    beanData.forEach((b, i) => {
+      const bean = beansBg.children[i];
+      if (t >= b.delay) {
+        const localT = t - b.delay;
+        const floatCycle = (localT * 0.15) % 1;
+        const floatY = Math.sin(floatCycle * Math.PI * 2) * 25;
+        const rot = localT * b.rotSpeed * 30;
+        bean.style.opacity = 0.25;
+        bean.style.transform = `translateY(${floatY}px) rotate(${rot}deg)`;
+        bean.style.transition = 'none';
+      }
+    });
+
+    // === Loop: reset at end ===
+    if (t >= DURATION) {
+      // reset everything for seamless loop
+      location.reload();
+      return;
+    }
+
+    requestAnimationFrame(animate);
+  }
+
+  requestAnimationFrame(animate);
+})();
+</script>
+</body>
+</html>
