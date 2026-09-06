@@ -10,22 +10,45 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - name: Install timecut
-        run: npm install -g timecut 2>&1 | tail -5
-      - name: Capture page to video
+      - name: Install ffmpeg
         run: |
-          PAGE_URL="file://$(pwd)/index.html"
-          npx timecut "$PAGE_URL" \
-            --viewport=1920,1080 \
-            --fps=${FPS:-60} \
-            --duration=${DURATION:-30} \
-            --output=out/video.mp4 \
-            --chromium-arg=--no-sandbox \
-            --chromium-arg=--disable-setuid-sandbox \
-            --chromium-arg=--no-zygote
+          curl -sL https://github.com/eugeneware/ffmpeg-static/releases/download/b6.0/ffmpeg-linux-x64 > /tmp/ffmpeg
+          chmod +x /tmp/ffmpeg
+      - name: Install puppeteer
+        run: npm install puppeteer 2>&1 | tail -3
+      - name: Capture screenshots
+        run: |
+          mkdir -p /tmp/frames
+          node << 'SCRIPT'
+          const puppeteer = require('puppeteer');
+          (async () => {
+            const browser = await puppeteer.launch({
+              args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+              headless: true,
+            });
+            const page = await browser.newPage();
+            await page.setViewport({ width: 1920, height: 1080 });
+            await page.goto('file://' + process.cwd() + '/index.html', { waitUntil: 'domcontentloaded' });
+            await new Promise(r => setTimeout(r, 500));
+
+            const FPS = 30;
+            const DURATION = 30;
+            const TOTAL = FPS * DURATION;
+
+            for (let i = 0; i < TOTAL; i++) {
+              await new Promise(resolve => setTimeout(resolve, 1000 / FPS));
+              await page.screenshot({ path: `/tmp/frames/frame_${String(i).padStart(6, '0')}.png`, type: 'png' });
+              if (i % 30 === 0) process.stdout.write(`\rFrame ${i}/${TOTAL}`);
+            }
+            console.log(`\rAll ${TOTAL} frames captured`);
+            await browser.close();
+          })();
+          SCRIPT
         env:
-          FPS: "60"
-          DURATION: "30"
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+      - name: Encode video
+        run: |
+          /tmp/ffmpeg -y -framerate 30 -i /tmp/frames/frame_%06d.png -c:v libx264 -pix_fmt yuv420p -crf 18 out/video.mp4
       - uses: actions/upload-artifact@v4
         with: { name: video, path: out/video.mp4 }
       - name: Attach to release
