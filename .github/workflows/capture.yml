@@ -19,10 +19,13 @@ jobs:
             --viewport=1920,1080 \
             --fps=${FPS:-60} \
             --duration=${DURATION:-30} \
-            --output=out/video.mp4
+            --output=out/video.mp4 \
+            --chromium-arg=--no-sandbox \
+            --chromium-arg=--disable-setuid-sandbox
         env:
           FPS: "60"
           DURATION: "30"
+          PUPPETEER_CHROMIUM_ARGS: "--no-sandbox --disable-setuid-sandbox"
       - uses: actions/upload-artifact@v4
         with: { name: video, path: out/video.mp4 }
       - name: Attach to release
