@@ -10,68 +10,22 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - name: Install dependencies
+      - name: Install timecut and ffmpeg
         run: |
-          npm install puppeteer 2>&1 | tail -3
-          npm install -g ffmpeg 2>&1 | tail -3 || apt-get install -y ffmpeg 2>&1 | tail -3
-      - name: Create capture script
+          npm install timecut 2>&1 | tail -5
+          npm install -g ffmpeg 2>&1 | tail -5 || apt-get install -y ffmpeg 2>&1 | tail -5
+      - name: Capture page to video
         run: |
-          cat > capture.mjs << 'SCRIPT'
-          import puppeteer from 'puppeteer';
-          import { execSync } from 'child_process';
-          import fs from 'fs';
-          import path from 'path';
-
-          const VIEWPORT = { width: 1920, height: 1080 };
-          const FPS = parseInt(process.env.FPS || '60');
-          const DURATION = parseInt(process.env.DURATION || '30');
-          const TOTAL_FRAMES = FPS * DURATION;
-          const PAGE_URL = process.env.PAGE_URL;
-
-          const frameDir = '/tmp/frames';
-          fs.mkdirSync(frameDir, { recursive: true });
-
-          const browser = await puppeteer.launch({
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
-            headless: true,
-          });
-
-          const page = await browser.newPage();
-          await page.setViewport(VIEWPORT);
-
-          const loadPromise = page.goto(`file://${process.cwd()}/index.html`, { waitUntil: 'networkidle0' });
-          await loadPromise;
-
-          await page.evaluate(() => {
-            return new Promise(resolve => {
-              if (document.readyState === 'complete') resolve();
-              else window.addEventListener('load', resolve);
-            });
-          });
-
-          await new Promise(r => setTimeout(r, 500));
-
-          for (let i = 0; i < TOTAL_FRAMES; i++) {
-            const timestamp = i / FPS;
-            await page.evaluate((ts) => {
-              window.__captureTs = ts;
-              window.dispatchEvent(new CustomEvent('__frametime__', { detail: { timestamp: ts } }));
-            }, timestamp);
-
-            const framePath = `${frameDir}/frame_${String(i).padStart(6, '0')}.png`;
-            await page.screenshot({ path: framePath, type: 'png' });
-
-            if (i % 60 === 0) process.stdout.write(`\r${i}/${TOTAL_FRAMES} frames`);
-          }
-          console.log(`\r${TOTAL_FRAMES}/${TOTAL_FRAMES} frames captured`);
-
-          await browser.close();
-
-          execSync(`mkdir -p out && ffmpeg -y -framerate ${FPS} -i ${frameDir}/frame_%06d.png -c:v libx264 -pix_fmt yuv420p -crf 18 out/video.mp4`, { stdio: 'inherit' });
-          console.log('Video encoded: out/video.mp4');
-          SCRIPT
-      - name: Capture frames
-        run: PAGE_URL="file://$(pwd)/index.html" FPS=60 DURATION=30 node capture.mjs 2>&1
+          PAGE_URL="file://$(pwd)/index.html"
+          export PUPPETEER_CHROMIUM_ARGS="--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage"
+          npx timecut "$PAGE_URL" \
+            --viewport=1920,1080 \
+            --fps=${FPS:-60} \
+            --duration=${DURATION:-30} \
+            --output=out/video.mp4
+        env:
+          FPS: "60"
+          DURATION: "30"
       - uses: actions/upload-artifact@v4
         with: { name: video, path: out/video.mp4 }
       - name: Attach to release
