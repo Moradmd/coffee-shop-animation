@@ -18,7 +18,7 @@ jobs:
         run: npm install puppeteer 2>&1 | tail -3
       - name: Capture screenshots
         run: |
-          mkdir -p /tmp/frames
+          mkdir -p /tmp/frames out
           node << 'SCRIPT'
           const puppeteer = require('puppeteer');
           (async () => {
@@ -28,27 +28,23 @@ jobs:
             });
             const page = await browser.newPage();
             await page.setViewport({ width: 1920, height: 1080 });
-            await page.goto('file://' + process.cwd() + '/index.html', { waitUntil: 'domcontentloaded' });
-            await new Promise(r => setTimeout(r, 500));
+            await page.goto('file://' + process.cwd() + '/index.html', { waitUntil: 'load' });
 
-            const FPS = 30;
-            const DURATION = 30;
+            const FPS = 60;
+            const DURATION = 5;
             const TOTAL = FPS * DURATION;
 
             for (let i = 0; i < TOTAL; i++) {
-              await new Promise(resolve => setTimeout(resolve, 1000 / FPS));
               await page.screenshot({ path: `/tmp/frames/frame_${String(i).padStart(6, '0')}.png`, type: 'png' });
-              if (i % 30 === 0) process.stdout.write(`\rFrame ${i}/${TOTAL}`);
+              await new Promise(resolve => setTimeout(resolve, 1000 / FPS));
+              if (i % 60 === 0) process.stdout.write(`\rFrame ${i}/${TOTAL}`);
             }
             console.log(`\rAll ${TOTAL} frames captured`);
             await browser.close();
           })();
           SCRIPT
-        env:
-          PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
       - name: Encode video
-        run: |
-          /tmp/ffmpeg -y -framerate 30 -i /tmp/frames/frame_%06d.png -c:v libx264 -pix_fmt yuv420p -crf 18 out/video.mp4
+        run: /tmp/ffmpeg -y -framerate 60 -i /tmp/frames/frame_%06d.png -c:v libx264 -pix_fmt yuv420p -crf 18 out/video.mp4
       - uses: actions/upload-artifact@v4
         with: { name: video, path: out/video.mp4 }
       - name: Attach to release

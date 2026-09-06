@@ -422,7 +422,7 @@ body {
 
 <script>
 (function() {
-  const DURATION = 30;
+  const DURATION = 5;
   const startTime = performance.now();
 
   // Easing function
@@ -600,10 +600,8 @@ body {
       }
     });
 
-    // === Loop: reset at end ===
+    // === Hold final frame ===
     if (t >= DURATION) {
-      // reset everything for seamless loop
-      location.reload();
       return;
     }
 
