@@ -10,8 +10,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
-      - run: npm install puppeteer
-      - run: npm install -g timecut
+      - name: Install system Chromium
+        run: |
+          apt-get update && apt-get install -y chromium-browser 2>&1 | tail -5
+          chromium --version
+      - name: Install timecut
+        run: |
+          npm install -g timecut 2>&1 | tail -5
       - name: Capture page to video
         run: |
           PAGE_URL="file://$(pwd)/index.html"
@@ -20,8 +25,7 @@ jobs:
             --fps=${FPS:-60} \
             --duration=${DURATION:-30} \
             --output=out/video.mp4 \
-            --chromium-arg=--no-sandbox \
-            --chromium-arg=--disable-setuid-sandbox
+            --chromium-executable=$(which chromium)
         env:
           FPS: "60"
           DURATION: "30"
